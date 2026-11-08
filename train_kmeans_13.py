@@ -1,9 +1,3 @@
-"""Train K-Means on Steam games with K=13. Place games.csv beside this script.
-
-Install the dependencies if needed.
-    python -m pip install pandas numpy scikit-learn joblib
-"""
-
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import ast
@@ -19,8 +13,6 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import MultiLabelBinarizer, Normalizer
 
 FILE = Path(__file__).resolve().with_name("games.csv")
-# Example Windows path
-# FILE = Path(r"C:\Users\Computer\Desktop\DataBase\games.csv")
 OUTPUT_DIR = FILE.parent / "kmeans_outputs"
 K = 13
 MIN_TOTAL_REVIEWS = 20
@@ -110,7 +102,6 @@ def make_tokens(table):
 
 
 def main():
-    # Load the games and apply the minimum review count.
     games = pd.read_csv(FILE, encoding="utf-8-sig", low_memory=False)
     input_rows = len(games)
     column_renames = {col: column_key(col) for col in games.columns}
@@ -146,7 +137,6 @@ def main():
     print(f"{review_eligible_rows:,} games have at least {MIN_TOTAL_REVIEWS} reviews.")
     print(f"Skipped {skipped_missing_names:,} review-eligible games with a missing or blank name.")
 
-    # Encode the content features and fit K-Means.
     profiles = make_tokens(games)
     positions = [i for i, tokens in enumerate(profiles) if tokens]
     training_profiles = [profiles[i] for i in positions]
@@ -164,14 +154,12 @@ def main():
     if np.unique(labels).size != K:
         raise RuntimeError("K-Means assigned games to fewer than 13 clusters. Check the variety of game content.")
 
-    # Match each cluster ID to the game row used for training.
     assigned = pd.Series(labels, index=games.index[positions], dtype="Int64")
     games["kmeans_cluster"] = assigned.reindex(games.index)
     games["kmeans_status"] = np.where(games["kmeans_cluster"].notna(), "clustered", "missing_content")
     print(f"Assigned {len(labels):,} games to {model.n_clusters} clusters.")
     print(games["kmeans_cluster"].value_counts().sort_index().rename("game_count"))
 
-    # Save the games table for KNN and the fitted model.
     summary = games.dropna(subset=["kmeans_cluster"]).groupby("kmeans_cluster").agg(
         game_count=("app_id", "size"),
         example_games=("name", lambda names: " | ".join(names.iloc[:5].astype(str))),
